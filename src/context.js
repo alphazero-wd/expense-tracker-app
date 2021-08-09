@@ -1,45 +1,97 @@
-import React, { useState, useContext, useEffect, useCallback } from 'react';
-// make sure to use https
-export const url = `http://www.omdbapi.com/?apikey=861edbb5`;
-
+import React, { useState, useContext } from 'react';
 const AppContext = React.createContext();
-
+const API_ENDPOINT = 'https://opentdb.com/api.php?';
+const table = {
+  sports: 21,
+  history: 23,
+  politics: 24,
+};
 const AppProvider = ({ children }) => {
-  const [value, setValue] = useState('batman');
+  const [quiz, setQuiz] = useState({
+    amount: 10,
+    category: 'sports',
+    difficulty: 'easy',
+  });
+  const [setup, setSetup] = useState(true);
+  const [error, setError] = useState(false);
+  const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [movies, setMovies] = useState([]);
-  const [error, setError] = useState({ isError: false, msg: '' });
-  const fetchMovies = useCallback(async () => {
+  const [index, setIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const fetchQuiz = async (url) => {
+    setSetup(false);
     setLoading(true);
-    try {
-      const res = await fetch(`${url}&s=${value}`);
-      const data = await res.json();
-      const { Search, Response, Error } = data;
-
-      if (Response === 'True') {
-        setMovies(Search);
-        setError({ isError: false, msg: '' });
+    const res = await fetch(url).catch((err) => console.log(err));
+    const data = await res.json();
+    const { results } = data;
+    if (res) {
+      if (results.length > 0) {
+        setQuestions(results);
+        setSetup(false);
+        setError(false);
       } else {
-        setError({ isError: true, msg: Error });
+        setError(true);
+        setSetup(true);
       }
-    } catch (error) {
-      console.log(error);
+    } else {
+      setSetup(true);
     }
     setLoading(false);
-  }, [value]);
-  useEffect(() => fetchMovies(), [fetchMovies]);
-  useEffect(() => fetchMovies(), [value, fetchMovies]);
+  };
+  const onChange = (e) => {
+    const name = e.target.name;
+    const value = e.target.value;
+    setQuiz({ ...quiz, [name]: value });
+  };
+  const onSubmit = (e) => {
+    e.preventDefault();
+    const { amount, category, difficulty } = quiz;
+    const url = `${API_ENDPOINT}amount=${amount}&category=${table[category]}&difficulty=${difficulty}&type=multiple`;
+    fetchQuiz(url);
+  };
+  const nextQuestion = () => {
+    setIndex((nextIndex) => {
+      if (nextIndex > questions.length - 2) {
+        nextIndex = 0;
+        setShowModal(true);
+      }
+      return nextIndex + 1;
+    });
+  };
+
+  const checkAnswer = (e) => {
+    const answer = e.target.textContent;
+    if (answer === questions[index].correct_answer) {
+      setScore(score + 1);
+    }
+    nextQuestion();
+  };
+
   return (
     <AppContext.Provider
-      value={{ value, setLoading, setValue, loading, movies, error }}
+      value={{
+        setup,
+        setSetup,
+        error,
+        setError,
+        questions,
+        index,
+        score,
+        loading,
+        showModal,
+        setShowModal,
+        onSubmit,
+        onChange,
+        quiz,
+        nextQuestion,
+        checkAnswer,
+      }}
     >
       {children}
     </AppContext.Provider>
   );
 };
-// make sure use
-export const useGlobalContext = () => {
-  return useContext(AppContext);
-};
+export const useGlobalContext = () => useContext(AppContext);
 
 export default AppProvider;

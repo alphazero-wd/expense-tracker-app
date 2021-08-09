@@ -1,18 +1,21 @@
-import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
-
-import Home from './components/Home';
-import Movie from './components/Movie';
-import Error from './components/Error';
-function App() {
+import Modal from './components/Modal';
+import Form from './components/Form';
+import Quiz from './components/Quiz';
+import { useGlobalContext } from './context';
+const App = () => {
+  const { setup, loading } = useGlobalContext();
+  if (loading) {
+    return <div className="loading"></div>;
+  }
   return (
-    <Router>
-      <Switch>
-        <Route exact path="/" component={Home} />
-        <Route path="/movie/:id" component={Movie} />
-        <Route path="*" component={Error} />
-      </Switch>
-    </Router>
+    <>
+      <main>
+        {setup && <Form />}
+        {!setup && <Quiz />}
+      </main>
+      <Modal />
+    </>
   );
-}
+};
 
 export default App;
