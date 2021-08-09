@@ -1,91 +1,88 @@
-import React, { useState, useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 const AppContext = React.createContext();
-const API_ENDPOINT = 'https://opentdb.com/api.php?';
-const table = {
-  sports: 21,
-  history: 23,
-  politics: 24,
+const getList = () => {
+  if (localStorage.getItem('list') !== null) {
+    const items = JSON.parse(localStorage.getItem('list'));
+    return items;
+  } else {
+    return [];
+  }
 };
 const AppProvider = ({ children }) => {
-  const [quiz, setQuiz] = useState({
-    amount: 10,
-    category: 'sports',
-    difficulty: 'easy',
-  });
-  const [setup, setSetup] = useState(true);
-  const [error, setError] = useState(false);
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [index, setIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [showModal, setShowModal] = useState(false);
-  const fetchQuiz = async (url) => {
-    setSetup(false);
-    setLoading(true);
-    const res = await fetch(url).catch((err) => console.log(err));
-    const data = await res.json();
-    const { results } = data;
-    if (res) {
-      if (results.length > 0) {
-        setQuestions(results);
-        setSetup(false);
-        setError(false);
-      } else {
-        setError(true);
-        setSetup(true);
-      }
-    } else {
-      setSetup(true);
-    }
-    setLoading(false);
-  };
+  const [item, setItem] = useState({ text: '', amount: '' });
+  const [list, setList] = useState(getList());
+  const [income, setIncome] = useState(0);
+  const [expense, setExpense] = useState(0);
+  const [balance, setBalance] = useState(0);
+
   const onChange = (e) => {
     const name = e.target.name;
     const value = e.target.value;
-    setQuiz({ ...quiz, [name]: value });
-  };
-  const onSubmit = (e) => {
-    e.preventDefault();
-    const { amount, category, difficulty } = quiz;
-    const url = `${API_ENDPOINT}amount=${amount}&category=${table[category]}&difficulty=${difficulty}&type=multiple`;
-    fetchQuiz(url);
-  };
-  const nextQuestion = () => {
-    setIndex((nextIndex) => {
-      if (nextIndex > questions.length - 2) {
-        nextIndex = 0;
-        setShowModal(true);
-      }
-      return nextIndex + 1;
-    });
+    setItem({ ...item, [name]: value });
   };
 
-  const checkAnswer = (e) => {
-    const answer = e.target.textContent;
-    if (answer === questions[index].correct_answer) {
-      setScore(score + 1);
+  const onSubmit = (e) => {
+    e.preventDefault();
+    if (item.text && item.amount) {
+      setList([...list, { id: new Date().getTime().toString(), ...item }]);
+      setItem({ text: '', amount: '' });
+    } else {
+      alert('Please add a text and amount');
     }
-    nextQuestion();
   };
+
+  const removeItem = (id) => {
+    const remainingItem = list.filter((item) => item.id !== id);
+    setList(remainingItem);
+  };
+
+  const getIncome = () => {
+    const newIncome = list
+      .filter((item) => parseInt(item.amount) >= 0)
+      .reduce((total, item) => {
+        total += parseInt(item.amount);
+        return total;
+      }, 0);
+    setIncome(newIncome);
+  };
+
+  const getExpense = () => {
+    const newExpense = list
+      .filter((item) => parseInt(item.amount) < 0)
+      .reduce((total, item) => {
+        total += parseInt(item.amount);
+        return total;
+      }, 0);
+    setExpense(newExpense);
+  };
+
+  const getBalance = () => {
+    const newBalance = income + expense;
+    setBalance(newBalance);
+  };
+
+  useEffect(() => {
+    getIncome();
+    getExpense();
+    getBalance();
+    localStorage.setItem('list', JSON.stringify(list));
+  }, [list, income, expense]);
 
   return (
     <AppContext.Provider
       value={{
-        setup,
-        setSetup,
-        error,
-        setError,
-        questions,
-        index,
-        score,
-        loading,
-        showModal,
-        setShowModal,
-        onSubmit,
+        list,
+        setList,
+        income,
+        setIncome,
+        expense,
+        setExpense,
+        item,
+        setItem,
         onChange,
-        quiz,
-        nextQuestion,
-        checkAnswer,
+        onSubmit,
+        removeItem,
+        balance,
       }}
     >
       {children}
@@ -93,5 +90,4 @@ const AppProvider = ({ children }) => {
   );
 };
 export const useGlobalContext = () => useContext(AppContext);
-
 export default AppProvider;
